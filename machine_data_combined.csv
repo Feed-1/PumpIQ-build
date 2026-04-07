@@ -1,0 +1,22 @@
+make,model,process,run_hours,failure_reason,status
+Grundfos,CM5-4,Water Supply,4200,N/A,Running
+Xylem,LR 4150,HVAC Circulation,8750,N/A,Running
+Flowserve,Mark 3,Chemical Transfer,3100,N/A,Running
+KSB,Etanorm 40-250,Boiler Feed,11200,N/A,Running
+Sulzer,CPE 65-1,Cooling Tower,6540,N/A,Running
+Goulds,3196 MTX,Crude Oil Transfer,9800,N/A,Running
+Wilo,VeroLine,Pressure Boost,2300,N/A,Running
+Armstrong,Design Envelope 4380,District Heating,7600,N/A,Running
+Grundfos,NB 50-160/160,Wastewater,15300,Seal Failure,Failed
+Flowserve,Durco Mark II,Solvent Recirculation,22100,Impeller Erosion,Failed
+Gorman-Rupp,T6A60S,Slurry Transfer,9870,Bearing Overheating,Failed
+ITT,PumpSmart PS220,Condensate Return,18600,Cavitation Damage,Failed
+Ebara,3M Series,Sea Water Cooling,12450,Corrosion,Failed
+Pentair,Aurora 341,Fire Suppression,7800,Motor Burnout,Failed
+Sulzer,Ahlstar A22-1,Pulp & Paper,31000,Shaft Fracture,Failed
+KSB,Omega 100-315,Mining Dewatering,28500,Abrasive Wear,Failed
+Wilo,MHI 805 EM,Pressure Boosting,17200,Voltage Surge,Failed
+Xylem,e-SV 32-10,Reverse Osmosis,24700,Membrane Fouling,Failed
+Goulds,AF Series,Petroleum Refinery,19350,Coke Buildup,Failed
+Weir Group,GEHO TZPM,Tailings Transfer,41200,Liner Cracking,Failed
+Netzsch,NEMO Series,Food Processing,8960,Contamination,Failed
