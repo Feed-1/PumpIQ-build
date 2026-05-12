@@ -308,6 +308,11 @@ REPLACEMENT_COST = {
     "E3000": 18000,
 }
 
+# BM penalty constants (on top of the shared rebuild cost)
+BM_DOWNTIME_HRS  = 8
+BM_DOWNTIME_RATE = 500     # $/hr
+WAFER_VALUE      = 5_000   # $ per wafer
+
 
 # ─────────────────────────────────────────────
 # 30-DAY COST PROJECTION
@@ -406,6 +411,142 @@ def plot_cost_projection(cost_df: pd.DataFrame, horizon_days: int = 30) -> go.Fi
 
 
 # ─────────────────────────────────────────────
+# PM COST-RISK OPTIMIZATION
+# ─────────────────────────────────────────────
+def _cycle_len_grid(T_grid: np.ndarray, beta: float, eta: float) -> np.ndarray:
+    """
+    Expected cycle length E[min(X, T)] = integral_0^T R(t) dt for each T in T_grid.
+    Uses a single quad call for [0, T_grid[0]] then cumulative trapezoid from there.
+    """
+    from scipy.integrate import quad
+    R_vals = np.exp(-((T_grid / eta) ** beta))
+    offset, _ = quad(lambda t: np.exp(-((t / eta) ** beta)), 0.0, float(T_grid[0]))
+    dx   = np.diff(T_grid)
+    trap = 0.5 * (R_vals[:-1] + R_vals[1:]) * dx
+    return np.concatenate([[offset], offset + np.cumsum(trap)])
+
+
+@st.cache_data
+def compute_pm_cost_curve(
+    beta: float, eta: float, c_pm: float, c_bm: float, n_pts: int = 600
+) -> tuple:
+    """
+    Age-replacement cost-rate model.
+
+    C(T) = [c_pm * R(T) + c_bm * F(T)] / integral_0^T R(t) dt
+
+    Returns (T_grid, cost_rates, T_star, C_star, T_lo, T_hi, c_bm_only_rate).
+    T_lo/T_hi bound the acceptable window where C(T) <= 1.10 * C_star.
+    """
+    from scipy.optimize import minimize_scalar
+    from scipy.integrate import quad
+    from scipy.special import gamma as gamma_fn
+
+    T_grid = np.linspace(eta * 0.02, eta * 4.0, n_pts)
+    R_grid = np.exp(-((T_grid / eta) ** beta))
+    F_grid = 1.0 - R_grid
+    cycle_lens = _cycle_len_grid(T_grid, beta, eta)
+
+    cost_rates = np.where(
+        cycle_lens > 1e-9,
+        (c_pm * R_grid + c_bm * F_grid) / cycle_lens,
+        np.inf,
+    )
+
+    # BM-only baseline: no PM ever, avg cycle = MTTF
+    mttf = eta * gamma_fn(1.0 + 1.0 / beta)
+    c_bm_only_rate = c_bm / mttf
+
+    # Precise optimum via bounded scalar minimization
+    def _rate(T):
+        R = float(np.exp(-((T / eta) ** beta)))
+        cyc, _ = quad(lambda t: np.exp(-((t / eta) ** beta)), 0.0, T)
+        return (c_pm * R + c_bm * (1.0 - R)) / max(cyc, 1e-9)
+
+    opt    = minimize_scalar(_rate, bounds=(eta * 0.02, eta * 4.0), method="bounded")
+    T_star = float(opt.x)
+    C_star = float(opt.fun)
+
+    # Acceptable window: contiguous region around T* where cost rate <= 1.10 * C_star
+    threshold = C_star * 1.10
+    mask      = cost_rates <= threshold
+    if mask.any():
+        idx_star = int(np.argmin(np.abs(T_grid - T_star)))
+        idx_lo   = idx_star
+        while idx_lo > 0 and mask[idx_lo - 1]:
+            idx_lo -= 1
+        idx_hi = idx_star
+        while idx_hi < len(T_grid) - 1 and mask[idx_hi + 1]:
+            idx_hi += 1
+        T_lo, T_hi = float(T_grid[idx_lo]), float(T_grid[idx_hi])
+    else:
+        T_lo = T_hi = T_star
+
+    return T_grid, cost_rates, T_star, C_star, T_lo, T_hi, c_bm_only_rate
+
+
+def plot_pm_cost_curve(
+    T_grid, cost_rates, T_star, C_star, T_lo, T_hi, c_bm_only_rate, combo_label
+):
+    finite_mask = np.isfinite(cost_rates)
+    y_min = cost_rates[finite_mask].min() if finite_mask.any() else 0
+    y_max = min(c_bm_only_rate * 2.5, cost_rates[finite_mask].max()) if finite_mask.any() else c_bm_only_rate * 2
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=T_grid[finite_mask], y=cost_rates[finite_mask],
+        name="PM Cost Rate ($/hr)",
+        line=dict(color="#4D96FF", width=2.5),
+        hovertemplate="Interval=%{x:,.0f} hrs<br>Cost Rate=$%{y:.4f}/hr<extra></extra>",
+    ))
+
+    fig.add_hline(
+        y=c_bm_only_rate, line_dash="dash", line_color="#FF6B6B", opacity=0.85,
+        annotation_text="BM-only (run-to-failure)", annotation_position="right",
+    )
+
+    fig.add_vrect(
+        x0=T_lo, x1=T_hi, fillcolor="#6BCB77", opacity=0.13,
+        layer="below", line_width=0,
+    )
+    mid_window = (T_lo + T_hi) / 2
+    fig.add_annotation(
+        x=mid_window, y=y_min * 0.97,
+        text="Optimal Window (≤+10%)", font=dict(color="#6BCB77", size=11),
+        showarrow=False, yref="y",
+    )
+
+    fig.add_vline(
+        x=T_star, line_dash="dash", line_color="#FFD93D", opacity=0.9,
+        annotation_text=f"T* = {T_star:,.0f} hrs", annotation_position="top right",
+    )
+    fig.add_trace(go.Scatter(
+        x=[T_star], y=[C_star],
+        mode="markers",
+        marker=dict(color="#FFD93D", size=13, symbol="star"),
+        name=f"T* = {T_star:,.0f} hrs  (min cost)",
+        hovertemplate=f"Optimal T* = {T_star:,.0f} hrs<br>Min Rate = ${C_star:.4f}/hr<extra></extra>",
+    ))
+
+    fig.update_layout(
+        title=f"PM Interval Cost-Rate Optimization — {combo_label}",
+        xaxis_title="PM Interval (hrs)",
+        yaxis_title="Expected Cost Rate ($/hr)",
+        yaxis=dict(gridcolor="#2a2a3e", range=[y_min * 0.9, y_max * 1.05]),
+        height=440,
+        margin=dict(t=60, b=40, l=90, r=80),
+        plot_bgcolor="#0f1117",
+        paper_bgcolor="#0f1117",
+        font=dict(color="#fafafa"),
+        xaxis=dict(gridcolor="#2a2a3e"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        hovermode="x unified",
+    )
+    return fig
+
+
+# ─────────────────────────────────────────────
 # MAIN APP
 # ─────────────────────────────────────────────
 def main():
@@ -431,10 +572,11 @@ def main():
     # ════════════════════════════════════════
     # TABS
     # ════════════════════════════════════════
-    tab_table, tab_plots, tab_cost = st.tabs([
+    tab_table, tab_plots, tab_cost, tab_pm = st.tabs([
         "📊 Fleet Summary",
         "📈 Reliability Plots",
         "💰 Cost Projection",
+        "🔧 PM Optimization",
     ])
 
     # ────────────────────────────────────────
@@ -672,6 +814,171 @@ Each pump's failure probability is multiplied by its **replacement cost**,
 then summed across all running pumps in each combo to give the **expected cost**.
 This is not a worst-case estimate — it is a statistically expected value.
                 """)
+
+    # ────────────────────────────────────────
+    # TAB 4: PM OPTIMIZATION
+    # ────────────────────────────────────────
+    with tab_pm:
+        st.subheader("Optimal PM Interval — Cost-Risk Optimization")
+
+        valid_pm = results[results["fit_status"] == "✅ OK"]
+
+        if valid_pm.empty:
+            st.warning("No valid Weibull fits available.")
+        else:
+            col_pa, col_pb = st.columns(2)
+            with col_pa:
+                pm_process = st.selectbox(
+                    "Select Process", sorted(valid_pm["process"].unique()), key="pm_process"
+                )
+            with col_pb:
+                pm_models = sorted(
+                    valid_pm[valid_pm["process"] == pm_process]["equipment_model"].unique()
+                )
+                pm_model = st.selectbox(
+                    "Select Equipment Model", pm_models, key="pm_model"
+                )
+
+            pm_row = valid_pm[
+                (valid_pm["process"] == pm_process) &
+                (valid_pm["equipment_model"] == pm_model)
+            ]
+
+            if pm_row.empty:
+                st.warning("No valid Weibull fit for this combination.")
+            else:
+                pm_row = pm_row.iloc[0]
+                beta        = float(pm_row["_wf_rho"])
+                eta         = float(pm_row["_wf_lambda"])
+                c_pm        = float(REPLACEMENT_COST.get(pm_model, 0))
+                combo_label = f"{pm_process} / {pm_model}"
+
+                if c_pm == 0:
+                    st.warning(
+                        f"No rebuild cost defined for model **{pm_model}**. "
+                        "Add it to `REPLACEMENT_COST` to enable optimization."
+                    )
+                else:
+                    st.divider()
+                    st.markdown("#### BM Risk Parameters")
+                    st.caption(
+                        f"PM part cost = **${c_pm:,.0f}** (same rebuild as BM). "
+                        "BM adds unplanned downtime and potential wafer loss on top."
+                    )
+
+                    bm_col1, bm_col2, bm_col3 = st.columns(3)
+                    with bm_col1:
+                        st.metric(
+                            "BM Downtime Cost",
+                            f"${BM_DOWNTIME_HRS * BM_DOWNTIME_RATE:,}",
+                            help=f"{BM_DOWNTIME_HRS} hrs × ${BM_DOWNTIME_RATE:,}/hr (fixed)",
+                        )
+                    with bm_col2:
+                        wafer_risk_pct = st.number_input(
+                            "Wafer scrap risk per BM event (%)",
+                            min_value=0.0, max_value=100.0, value=20.0, step=5.0,
+                            key="pm_wafer_risk",
+                        )
+                    with bm_col3:
+                        wafer_qty = st.number_input(
+                            "Wafers at risk per BM event",
+                            min_value=0, max_value=125, value=4, step=1,
+                            key="pm_wafer_qty",
+                        )
+
+                    wafer_risk_cost = (wafer_risk_pct / 100.0) * wafer_qty * WAFER_VALUE
+                    bm_extra        = BM_DOWNTIME_HRS * BM_DOWNTIME_RATE + wafer_risk_cost
+                    c_bm            = c_pm + bm_extra
+
+                    st.info(
+                        f"**BM total cost** = ${c_pm:,.0f} (parts) "
+                        f"+ ${BM_DOWNTIME_HRS * BM_DOWNTIME_RATE:,} (downtime) "
+                        f"+ ${wafer_risk_cost:,.0f} (wafer risk at {wafer_risk_pct:.0f}% × {wafer_qty} wafers × $5k) "
+                        f"= **${c_bm:,.0f}**  |  "
+                        f"PM avoids **${bm_extra:,.0f}** in extra BM costs per avoided failure"
+                    )
+
+                    st.divider()
+
+                    if beta <= 1.0:
+                        st.warning(
+                            f"**β = {beta:.2f} — age-based PM optimization is not applicable.** "
+                            "Failure rate is constant (β ≈ 1) or decreasing (β < 1); replacing "
+                            "equipment before failure does not reduce failure probability. "
+                            "Focus on root-cause analysis or incoming inspection instead."
+                        )
+                    else:
+                        with st.spinner("Computing optimal PM interval..."):
+                            T_grid, cost_rates, T_star, C_star, T_lo, T_hi, c_bm_only_rate = \
+                                compute_pm_cost_curve(beta, eta, c_pm, c_bm)
+
+                        n_running = int((
+                            (df["event_observed"] == 0) &
+                            (df["process"] == pm_process) &
+                            (df["equipment_model"] == pm_model)
+                        ).sum())
+
+                        savings_per_unit  = max((c_bm_only_rate - C_star) * 8760, 0)
+                        savings_fleet     = savings_per_unit * n_running
+
+                        pm1, pm2, pm3, pm4, pm5 = st.columns(5)
+                        pm1.metric(
+                            "Optimal PM Interval", f"{T_star:,.0f} hrs",
+                            help="Minimises expected cost per operating hour",
+                        )
+                        pm2.metric(
+                            "Acceptable Window (≤+10%)",
+                            f"{T_lo:,.0f} – {T_hi:,.0f} hrs",
+                            help="Any interval in this range stays within 10% of the theoretical minimum cost",
+                        )
+                        pm3.metric(
+                            "Annual Savings / Unit",
+                            f"${savings_per_unit:,.0f}",
+                            help="Per-pump savings over 8,760 hrs at optimal PM interval vs run-to-failure",
+                        )
+                        pm4.metric(
+                            f"Fleet Savings / Year ({n_running} running)",
+                            f"${savings_fleet:,.0f}",
+                            help=f"Per-unit savings × {n_running} currently-running pumps in this combo",
+                        )
+                        pm5.metric(
+                            "Min Cost Rate",
+                            f"${C_star:.3f}/hr",
+                            delta=f"${C_star - c_bm_only_rate:.3f}/hr vs BM-only",
+                            delta_color="inverse",
+                            help="Expected cost per operating hour at optimal PM interval",
+                        )
+
+                        st.plotly_chart(
+                            plot_pm_cost_curve(
+                                T_grid, cost_rates, T_star, C_star, T_lo, T_hi,
+                                c_bm_only_rate, combo_label,
+                            ),
+                            use_container_width=True,
+                        )
+
+                        with st.expander("ℹ️ How is the optimal interval calculated?"):
+                            st.markdown(rf"""
+The model minimises the **long-run expected cost per operating hour** for an
+age-based replacement policy — replace at scheduled interval T (PM) *or* at failure (BM), whichever comes first.
+
+$$C(T) = \frac{{C_{{PM}} \cdot R(T) \;+\; C_{{BM}} \cdot F(T)}}{{\displaystyle\int_0^T R(t)\,dt}}$$
+
+| Symbol | Meaning | This combo |
+|--------|---------|------------|
+| $C_{{PM}}$ | Planned replacement cost (rebuild only) | ${c_pm:,.0f} |
+| $C_{{BM}}$ | Unplanned failure cost (rebuild + downtime + wafer risk) | ${c_bm:,.0f} |
+| $R(T)$ | Weibull survival — probability unit reaches age T | — |
+| $F(T)=1-R(T)$ | Failure probability before age T | — |
+| $\int_0^T R(t)\,dt$ | Expected cycle length (mean time to replacement) | — |
+
+The **green shaded window** is the range of PM intervals where cost stays within **10% of the minimum** — use this for practical scheduling flexibility.
+
+The **red dashed line** is the cost rate if no PM is performed (run-to-failure). Whenever the blue curve sits below the red line, proactive PM is cost-justified.
+
+> BM downtime assumed at **{BM_DOWNTIME_HRS} hrs × ${BM_DOWNTIME_RATE:,}/hr = ${BM_DOWNTIME_HRS * BM_DOWNTIME_RATE:,}**.
+> Wafer value assumed at **${WAFER_VALUE:,}/wafer**. Adjust inputs above to reflect your actual risk exposure.
+                            """)
 
     st.divider()
     st.caption(
