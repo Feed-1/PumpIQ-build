@@ -1,0 +1,416 @@
+/* ESPN Draft Big Board — injected styles */
+
+#ebb-panel {
+  position: fixed;
+  top: 80px;
+  right: 16px;
+  width: 300px;
+  height: 560px;
+  background: #0f172a;
+  border: 1px solid #1e40af;
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(96,165,250,0.1);
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  color: #e2e8f0;
+  overflow: hidden;
+  min-width: 260px;
+  min-height: 200px;
+  resize: none; /* we handle resize manually */
+}
+
+/* ─── Header ─────────────────────────────────────────────────── */
+
+#ebb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+  border-bottom: 1px solid #1e40af;
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+  border-radius: 10px 10px 0 0;
+}
+
+#ebb-header:active {
+  cursor: grabbing;
+}
+
+#ebb-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  color: #60a5fa;
+  letter-spacing: 0.3px;
+}
+
+#ebb-icon {
+  font-size: 16px;
+}
+
+#ebb-header-btns {
+  display: flex;
+  gap: 4px;
+}
+
+#ebb-header-btns button {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #94a3b8;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+
+#ebb-header-btns button:hover {
+  background: rgba(255,255,255,0.15);
+  color: #e2e8f0;
+}
+
+#ebb-close:hover {
+  background: #7f1d1d !important;
+  border-color: #991b1b !important;
+  color: #fca5a5 !important;
+}
+
+/* ─── Body ───────────────────────────────────────────────────── */
+
+#ebb-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ─── Toolbar ────────────────────────────────────────────────── */
+
+#ebb-toolbar {
+  padding: 8px 10px;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#ebb-search {
+  width: 100%;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: #e2e8f0;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+#ebb-search:focus {
+  border-color: #3b82f6;
+}
+
+#ebb-search::placeholder {
+  color: #475569;
+}
+
+#ebb-pos-filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.ebb-pos-btn {
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.3px;
+}
+
+.ebb-pos-btn:hover {
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+.ebb-pos-btn.active {
+  background: #1e40af;
+  border-color: #3b82f6;
+  color: #93c5fd;
+}
+
+#ebb-options {
+  display: flex;
+  align-items: center;
+}
+
+.ebb-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ebb-toggle-label input[type="checkbox"] {
+  accent-color: #3b82f6;
+  cursor: pointer;
+  width: 13px;
+  height: 13px;
+}
+
+/* ─── Stats Bar ──────────────────────────────────────────────── */
+
+#ebb-stats {
+  display: flex;
+  gap: 8px;
+  padding: 5px 10px;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+
+.ebb-stat {
+  font-size: 11px;
+  font-weight: 600;
+  color: #86efac;
+}
+
+.ebb-stat.drafted {
+  color: #f87171;
+}
+
+/* ─── Player List ────────────────────────────────────────────── */
+
+#ebb-list-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+
+#ebb-list-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+#ebb-list-container::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 2px;
+}
+
+#ebb-list {
+  padding: 4px 0;
+}
+
+.ebb-player-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: context-menu;
+  transition: background 0.1s;
+  border-bottom: 1px solid rgba(30,41,59,0.5);
+}
+
+.ebb-player-row:hover {
+  background: rgba(30,41,59,0.7);
+}
+
+.ebb-player-row.drafted {
+  opacity: 0.4;
+}
+
+.ebb-player-row.drafted .ebb-player-name {
+  text-decoration: line-through;
+  color: #475569;
+}
+
+.ebb-rank {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  min-width: 22px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.ebb-pos-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  border: 1px solid;
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: center;
+}
+
+.ebb-player-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.ebb-player-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ebb-player-team {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.ebb-player-notes {
+  font-size: 10px;
+  color: #475569;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ebb-drafted-badge {
+  font-size: 9px;
+  font-weight: 800;
+  color: #f87171;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+/* ─── Empty State ────────────────────────────────────────────── */
+
+#ebb-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 30px 20px;
+  text-align: center;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#ebb-empty div:first-child {
+  font-size: 32px;
+}
+
+#ebb-empty.hidden {
+  display: none;
+}
+
+/* ─── Resize Handle ──────────────────────────────────────────── */
+
+#ebb-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #334155;
+  font-size: 14px;
+  cursor: se-resize;
+  user-select: none;
+}
+
+#ebb-resize-handle:hover {
+  color: #475569;
+}
+
+/* ─── Context Menu ───────────────────────────────────────────── */
+
+#ebb-context-menu {
+  position: fixed;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  z-index: 2147483647;
+  min-width: 180px;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.ebb-ctx-player {
+  padding: 8px 12px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  border-bottom: 1px solid #334155;
+}
+
+.ebb-ctx-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: #e2e8f0;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.ebb-ctx-btn:hover {
+  background: #334155;
+}
+
+/* ─── Floating Action Button ─────────────────────────────────── */
+
+#ebb-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1e40af, #1e3a5f);
+  border: 2px solid #3b82f6;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  cursor: pointer;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2147483646;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+#ebb-fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(59,130,246,0.4);
+}

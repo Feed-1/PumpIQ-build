@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "ESPN Fantasy Draft Big Board",
+  "version": "1.0.0",
+  "description": "Upload custom rankings and track your big board in real-time during ESPN fantasy drafts.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["https://fantasy.espn.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ESPN Draft Big Board",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://fantasy.espn.com/*draft*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

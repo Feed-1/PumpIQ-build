@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESPN Draft Big Board</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      <span class="logo-icon">🏈</span>
+      <span class="logo-text">Draft Big Board</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Upload Rankings</div>
+    <div class="section-desc">
+      Upload a CSV file with your custom player rankings.<br>
+      <strong>Format:</strong> Rank, Name, Position, Team, Notes (optional)
+    </div>
+
+    <div class="csv-example">
+      <div class="csv-example-title">CSV Example:</div>
+      <code>1,Christian McCaffrey,RB,SF</code><br>
+      <code>2,CeeDee Lamb,WR,DAL</code><br>
+      <code>3,Tyreek Hill,WR,MIA</code>
+    </div>
+
+    <label class="upload-btn" id="uploadLabel">
+      <span id="uploadIcon">📂</span>
+      <span id="uploadText">Choose CSV File</span>
+      <input type="file" id="fileInput" accept=".csv,.txt" hidden>
+    </label>
+
+    <div id="uploadStatus" class="status hidden"></div>
+  </div>
+
+  <div class="section" id="rankingsSection" style="display:none">
+    <div class="section-title">Rankings Loaded</div>
+    <div id="rankingsSummary" class="rankings-summary"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="clearBtn">Clear Rankings</button>
+      <button class="btn btn-primary" id="showBoardBtn">Show Big Board</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">How to Use</div>
+    <ol class="instructions">
+      <li>Upload your CSV rankings file above</li>
+      <li>Navigate to an ESPN fantasy draft page</li>
+      <li>Your big board will appear automatically</li>
+      <li>Players are removed as they get drafted</li>
+      <li>Right-click any player to mark manually</li>
+    </ol>
+  </div>
+
+  <div class="footer">
+    <a href="#" id="downloadTemplate">Download CSV Template</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
